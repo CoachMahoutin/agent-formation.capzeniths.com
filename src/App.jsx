@@ -45,18 +45,27 @@ const injectStyles = () => {
   document.head.appendChild(s);
 };
 
+// ── SYNC SUPABASE ────────────────────────────────────────────────
+const syncToSupabase = async (table, data, agent) => {
+  try {
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table, action: 'insert', data, agent }),
+    });
+  } catch (e) {
+    console.warn('Sync Supabase échouée:', e.message);
+  }
+};
+
 // ── LOGO SVG ─────────────────────────────────────────────────────
 const Logo = ({ height = 34, dark = false }) => (
   <svg viewBox="0 0 210 60" height={height} style={{ display:"block" }} xmlns="http://www.w3.org/2000/svg" aria-label="CapZeniths">
-    {/* Cercle aubergine */}
     <circle cx="30" cy="30" r="28" fill="#2D0A3E"/>
-    {/* 3 barres ascendantes */}
     <rect x="14" y="37" width="9" height="9"  rx="1.5" fill="#F5A623"/>
     <rect x="26" y="28" width="9" height="18" rx="1.5" fill="#F5A623"/>
     <rect x="38" y="18" width="9" height="28" rx="1.5" fill="#F5A623"/>
-    {/* Étoile au sommet de la 3e barre */}
     <polygon points="42.5,6.5 43.8,10.2 47.7,10.3 44.6,12.7 45.7,16.5 42.5,14.2 39.3,16.5 40.4,12.7 37.3,10.3 41.2,10.2" fill="#F5A623"/>
-    {/* Texte */}
     <text x="66" y="41" fontFamily="'Outfit',sans-serif" fontSize="25" fontWeight="700" fill="#F5A623">Cap</text>
     <text x="109" y="41" fontFamily="'Outfit',sans-serif" fontSize="25" fontWeight="700" fill={dark ? "#C4B8E8" : "#9B8ED4"}>Zeniths</text>
   </svg>
@@ -133,7 +142,21 @@ export default function AgentFormation() {
       const qzMsg  = `Module : ${mod.module?.titre}\nPilier : ${pLabel}\nObjectifs : ${(mod.module?.objectifs||[]).join(", ")}`;
       const qz     = await callAPI(QUIZ_SYS, qzMsg);
       clearInterval(iv); setLpct(100);
-      setResult({ module:mod.module, seances:mod.seances||[], quiz:qz.quiz||[] });
+      const finalResult = { module:mod.module, seances:mod.seances||[], quiz:qz.quiz||[] };
+      setResult(finalResult);
+
+      // SYNC SUPABASE
+      await syncToSupabase('formations', {
+        pilier:           pLabel || '',
+        theme:            form.titre,
+        niveau:           niv || '',
+        nb_seances:       parseInt(form.nbSeances) || 1,
+        profil_apprenant: prof || '',
+        titre_module:     mod.module?.titre || form.titre,
+        contenu_genere:   true,
+        date_creation:    new Date().toISOString().slice(0, 10),
+      }, 'formation');
+
       setTimeout(()=>setStep(3), 400);
     } catch(e) {
       clearInterval(iv); setErr("Erreur de génération. Réessaie."); setStep(1);
@@ -164,7 +187,6 @@ export default function AgentFormation() {
 
     return (
       <div className="czf">
-        {/* Navbar */}
         <div className="no-print" style={{background:"#FFF8E8",padding:"0 24px",position:"sticky",borderBottom:"2px solid #F5A623",top:0,zIndex:100}}>
           <div style={{maxWidth:780,margin:"0 auto",height:58,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
             <Logo height={32} dark/>
@@ -177,8 +199,6 @@ export default function AgentFormation() {
         </div>
 
         <div style={{maxWidth:780,margin:"0 auto",padding:"40px 24px"}}>
-
-          {/* En-tête résultat */}
           <div className="czf-up" style={{marginBottom:32}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
               <span style={{background:"#F5A623",color:"#2D0A3E",fontSize:11,fontWeight:700,letterSpacing:".08em",padding:"3px 10px",borderRadius:20}}>{P?.icon} {module?.pilier?.toUpperCase()}</span>
@@ -187,14 +207,12 @@ export default function AgentFormation() {
             <div className="czf-serif" style={{fontSize:32,color:"#2D0A3E",lineHeight:1.2}}>{module?.titre}</div>
           </div>
 
-          {/* Tabs */}
           <div className="no-print" style={{display:"flex",gap:6,marginBottom:32}}>
             {[{id:"module",label:"📋 Module"},{id:"seances",label:"🎓 Séances"},{id:"quiz",label:"❓ Quiz"}].map(t=>(
               <button key={t.id} onClick={()=>setTab(t.id)} className={`czf-tab${tab===t.id?" sel":""}`}>{t.label}</button>
             ))}
           </div>
 
-          {/* MODULE */}
           {tab==="module" && (
             <div className="czf-up1">
               <div className="czf-card" style={{padding:"30px 34px",marginBottom:16,borderTop:"4px solid #F5A623"}}>
@@ -204,7 +222,6 @@ export default function AgentFormation() {
                 </div>
                 <p style={{fontSize:15,lineHeight:1.85,color:"#2D1B4E",margin:0}}>{module?.resume}</p>
               </div>
-
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
                 <div className="czf-card" style={{padding:"24px 26px"}}>
                   <div style={{fontSize:10,fontWeight:700,letterSpacing:".12em",color:"#F5A623",marginBottom:16,textTransform:"uppercase"}}>Objectifs</div>
@@ -225,7 +242,6 @@ export default function AgentFormation() {
                   ))}
                 </div>
               </div>
-
               {module?.prerequis && (
                 <div className="czf-card" style={{padding:"14px 26px",borderLeft:"4px solid rgba(245,166,35,.3)",display:"flex",gap:12,alignItems:"center"}}>
                   <span style={{fontSize:10,fontWeight:700,letterSpacing:".12em",color:"#B8A898",textTransform:"uppercase",flexShrink:0}}>Prérequis</span>
@@ -235,7 +251,6 @@ export default function AgentFormation() {
             </div>
           )}
 
-          {/* SÉANCES */}
           {tab==="seances" && (
             <div className="czf-up1">
               <div style={{display:"flex",justifyContent:"flex-end",marginBottom:18,gap:8}}>
@@ -245,7 +260,6 @@ export default function AgentFormation() {
               <div style={{display:"flex",flexDirection:"column",gap:20}}>
                 {seances.map((s,i)=>(
                   <div key={i} className="czf-card" style={{overflow:"hidden"}}>
-                    {/* Header séance */}
                     <div style={{background:"#2D0A3E",padding:"20px 28px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       <div style={{display:"flex",alignItems:"center",gap:16}}>
                         <div style={{width:38,height:38,borderRadius:"50%",background:"#F5A623",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:700,color:"#2D0A3E",flexShrink:0}}>{s.numero}</div>
@@ -255,7 +269,6 @@ export default function AgentFormation() {
                         </div>
                       </div>
                     </div>
-                    {/* Corps séance */}
                     <div style={{padding:"24px 28px"}}>
                       <div style={{fontSize:10,fontWeight:700,letterSpacing:".12em",color:"#B8A898",marginBottom:14,textTransform:"uppercase"}}>Plan de séance</div>
                       <div style={{marginBottom:22}}>
@@ -283,7 +296,6 @@ export default function AgentFormation() {
             </div>
           )}
 
-          {/* QUIZ */}
           {tab==="quiz" && (
             <div className="czf-up1">
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}>
@@ -327,14 +339,12 @@ export default function AgentFormation() {
   // ── FORMULAIRE ──
   return (
     <div className="czf">
-      {/* Navbar */}
-      <div style={{background:"#FFF8E8",padding:"0 24px",borderBottom:"2px solid #F5A623"}}> 
+      <div style={{background:"#FFF8E8",padding:"0 24px",borderBottom:"2px solid #F5A623"}}>
         <div style={{maxWidth:680,margin:"0 auto",height:58,display:"flex",alignItems:"center"}}>
           <Logo height={32} dark/>
         </div>
       </div>
 
-      {/* Hero */}
       <div style={{background:"linear-gradient(135deg,#2D0A3E 0%,#1A0652 100%)",padding:"52px 24px 60px"}}>
         <div style={{maxWidth:680,margin:"0 auto"}}>
           <div className="czf-up" style={{fontSize:11,fontWeight:700,letterSpacing:".16em",color:"rgba(245,166,35,.55)",textTransform:"uppercase",marginBottom:12}}>Agent Formation</div>
@@ -348,11 +358,8 @@ export default function AgentFormation() {
         </div>
       </div>
 
-      {/* Carte formulaire */}
       <div style={{maxWidth:680,margin:"-26px auto 0",padding:"0 20px 56px",position:"relative",zIndex:1}}>
         <div className="czf-card czf-up3" style={{padding:"34px 34px 38px"}}>
-
-          {/* Piliers */}
           <div style={{marginBottom:26}}>
             <div style={{fontSize:10,fontWeight:700,letterSpacing:".14em",color:"#B8A898",marginBottom:14,textTransform:"uppercase"}}>Pilier CapZeniths</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
@@ -365,13 +372,11 @@ export default function AgentFormation() {
             </div>
           </div>
 
-          {/* Thème */}
           <div style={{marginBottom:22}}>
             <div style={{fontSize:10,fontWeight:700,letterSpacing:".14em",color:"#B8A898",marginBottom:9,textTransform:"uppercase"}}>Thème du module</div>
             <input className="czf-inp" value={form.titre} onChange={e=>sf("titre",e.target.value)} placeholder="Ex. : Gérer sa trésorerie en période de crise"/>
           </div>
 
-          {/* Options */}
           <div style={{display:"grid",gridTemplateColumns:"auto 1fr 1fr",gap:18,marginBottom:30,alignItems:"start"}}>
             <div>
               <div style={{fontSize:10,fontWeight:700,letterSpacing:".14em",color:"#B8A898",marginBottom:9,textTransform:"uppercase"}}>Séances</div>
