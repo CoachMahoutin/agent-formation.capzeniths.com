@@ -94,11 +94,23 @@ const QUIZ_SYS = `Tu es l'Agent Formation de CapZeniths. Crée un quiz de 8 ques
 
 const callAPI = async (system, content) => {
   const res = await fetch("/api/analyze", {
-    method:"POST", headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system,messages:[{role:"user",content}]}),
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 4000,
+      system,
+      messages: [{ role: "user", content }],
+    }),
   });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`API ${res.status}: ${errText}`);
+  }
   const data = await res.json();
-  return JSON.parse((data.content?.[0]?.text||"").replace(/```json|```/g,"").trim());
+  const raw = (data.content?.[0]?.text || "").replace(/```json|```/g, "").trim();
+  const jsonMatch = raw.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+  return JSON.parse(jsonMatch ? jsonMatch[0] : raw);
 };
 
 const LOADS = ["Analyse du brief…","Conception du module…","Rédaction des séances…","Génération du quiz…","Finalisation du programme…"];
