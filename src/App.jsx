@@ -46,15 +46,29 @@ const injectStyles = () => {
 };
 
 // ── SYNC SUPABASE ────────────────────────────────────────────────
-const syncToSupabase = async (table, data, agent) => {
+const SUPABASE_URL = 'https://dtvzchtqbfomhneroudk.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dnpjaHRxYmZvbWhuZXJvdWRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMTM2ODMsImV4cCI6MjA5NTc4OTY4M30.rYbJ1KEAvraywUTZzh2Xae2onUaCajsizVSXo_8hQTA';
+
+const syncToSupabase = async (table, data) => {
   try {
-    await fetch('/api/sync', {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ table, action: 'insert', data, agent }),
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify([data]),
     });
+    const result = await res.json();
+    if (!res.ok) {
+      console.error('Sync Supabase erreur:', result);
+    } else {
+      console.log('Sync Supabase OK:', result);
+    }
   } catch (e) {
-    console.warn('Sync Supabase échouée:', e.message);
+    console.error('Sync Supabase échouée:', e.message);
   }
 };
 
